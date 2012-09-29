@@ -211,7 +211,7 @@
              (destructuring-bind (form) (rest whole)
                (let ((var (funcall precomputed-gensym)))
                  (prog1 var
-                   (funcall add-let-binding var form)))))))
+                   (funcall add-let-binding (list var form))))))))
    (cons :cache
          (let ((cache-gensym (%gensym-generator '#:cache))
                (cachedp-gensym (%gensym-generator '#:cachedp)))
@@ -223,8 +223,8 @@
                              ,cache-var
                              (prog1 (setf ,cache-var ,form)
                                (setf ,cachedp-var t)))
-                   (funcall add-let-binding cache-var 'nil)
-                   (funcall add-let-binding cachedp-var 'nil)))))))))
+                   (funcall add-let-binding (list cache-var 'nil))
+                   (funcall add-let-binding (list cachedp-var 'nil))))))))))
 
 (defun %processing-local-special-forms (local-special-forms-alist else)
   (lambda (expression)
