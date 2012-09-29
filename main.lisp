@@ -25,155 +25,252 @@
             (gensym (format nil "~A~D-" base (incf count)))
             (error "override-base must be specified because no default-base."))))))
 
-(defvar *%context* nil)
-
-(defun %process-local-special-forms (body)
-  (if (let ((foundp nil))
-        (labels ((%search (expression)
-                   (when (consp expression)
-                     (let* ((old-context *%context*)
-                            (*%context*
-                             (if (member (first expression) '(:let :once))
-                                 (if old-context
-                                     (error "Found ~S nested within ~S ~
-                                             local special form."
-                                            expression (first old-context))
-                                     (setf foundp expression))
-                                 old-context)))
-                       ;; Dotted-list-aware (some #'%search expression).
-                       (do ((tail expression (rest tail)))
-                           ((atom tail))
-                         (%search (first tail)))))))
-          (%search body))
-        foundp)
-      (let ((vars nil) (forms nil)
-            (gen-cache-gensym (%gensym-generator '#:cache))
-            (gen-cachedp-gensym (%gensym-generator '#:cachedp)))
-        (labels ((recurse (expression)
-                   (etypecase expression
-                     ((cons (eql :let))
-                      (destructuring-bind (form) (rest expression)
-                        (let ((var (gensym (string '#:precomputed))))
-                          (prog1 var
-                            (push var vars)
-                            (push form forms)))))
-                     ((cons (eql :once))
-                      (destructuring-bind (form) (rest expression)
-                        (let ((cache-var (funcall gen-cache-gensym))
-                              (cachedp-var (funcall gen-cachedp-gensym)))
-                          (prog1 `(if ,cachedp-var
-                                      ,cache-var
-                                      (prog1 (setf ,cache-var ,form)
-                                        (setf ,cachedp-var t)))
-                            (push cache-var vars)
-                            (push 'nil forms)
-                            (push cachedp-var vars)
-                            (push 'nil forms)))))
-                     (cons
-                      ;;Dotted-list-aware (mapcar #'recurse expression).
-                      (labels ((process (current)
-                                 (cons (recurse (first current))
-                                       (let ((tail (rest current)))
-                                         (if (atom tail)
-                                             tail
-                                             (process tail))))))
-                        (process expression)))
-                     (t expression))))
-          (values (mapcar #'recurse body) (nreverse vars) (nreverse forms))))
-      (values body nil nil)))
-
-(defun %analyze-references (body &aux (alist nil) (restp nil))
-  '(values references positions used-rest-p)
-  (labels ((scan (expression &aux position)
-             (cond
-               ((listp expression)
-                ;; Dotted-list-aware.
-                (do ((tail expression (rest tail)))
-                    ((atom tail) (when tail
-                                   (scan tail)))
-                  (scan (first tail))))
-               ((eq expression :rest)
-                (setf restp t))
-               ((setf position (%positional-ref-p expression))
-                (push (cons expression position) alist)))))
-    (scan body)
-    (let ((alist (sort (delete-duplicates alist :key #'car)
-                       #'< :key #'cdr)))
-      (values (mapcar #'car alist) (mapcar #'cdr alist) restp))))
-
-(defun %compute-lambda-list/ignored-vars/replacements
-    (references positions min-length-indicator rest-kind)
-  '(values lambda-list ignored-vars replacements-alist)
-  (let ((lambda-list nil)
-        (ignored-vars nil)
-        (replacements-alist nil)
-        (min-length (%positional-ref-p min-length-indicator))
-        (used-ignored-generator (%gensym-generator)))
-    (flet ((add-vars (kind how-many
-                           &optional (gensym-generator used-ignored-generator))
-             (let ((base (princ-to-string (ecase kind
-                                            (:used '#:used)
-                                            (:ignored '#:ignored)))))
-               (dotimes (i how-many (when (= how-many 1)
-                                      (first lambda-list)))
-                 (let ((var (funcall gensym-generator base)))
-                   (push var lambda-list)
-                   (when (eq kind :ignored)
-                     (push var ignored-vars))))))
-           (add-replacement (old new)
-             (push (cons old new) replacements-alist)))
-      (map-bind (mapc) ((previous-position (cons 0 positions))
-                        (current-ref references)
-                        (current-position positions))
-        (add-vars :ignored (- current-position previous-position 1))
-        (add-replacement current-ref (add-vars :used 1)))
-      (when min-length
-        (add-vars :ignored
-                  (- min-length
-                     (if positions (first (last positions)) 0))))
-      (when rest-kind
-        (push '&rest lambda-list)
-        (let ((rest-var
-               (add-vars rest-kind 1
-                         (lambda (base)
-                           (gensym (format nil "~A-~A" base '#:rest))))))
-          (when (eq rest-kind :used)
-            (add-replacement :rest rest-var)))))
-    (values (nreverse lambda-list)
-            (nreverse ignored-vars)
-            (nreverse replacements-alist))))
-
 (defun %parse-body (body)
   '(values body min-length-indicator accept-rest-p)
   (multiple-value-bind (body min-length-indicator)
       (if (and (rest body) (%positional-ref-p (first body)))
           (values (rest body) (first body))
           (values body nil))
-    (multiple-value-bind (body accept-rest-p) (if (eq (first body) :rest)
-                                                  (values (rest body) t)
-                                                  (values body nil))
-      (values body min-length-indicator accept-rest-p))))
+    (multiple-value-bind (body accept-rest-p)
+        (if (eq (first body) :rest)
+            (values (rest body) t)
+            (values body nil))
+      (values body
+              :min-length-indicator min-length-indicator
+              :accept-rest-p accept-rest-p))))
 
-(defmacro plambda (&body body)
-  (multiple-value-bind (body min-length-indicator accept-rest-p)
-      (%parse-body body)
-    (multiple-value-bind (references positions used-rest-p)
-        (%analyze-references body)
-      (multiple-value-bind (lambda-list ignored-vars replacements-alist)
-          (%compute-lambda-list/ignored-vars/replacements
-           references
-           positions
-           min-length-indicator
-           (cond (used-rest-p :used)
-                 (accept-rest-p :ignored)
-                 (t nil)))
-        (multiple-value-bind (body let-vars let-forms)
-            (%process-local-special-forms body)
-          (let ((main
-                 `(lambda ,lambda-list
-                    ,@(and ignored-vars (list `(declare (ignore ,@ignored-vars))))
-                    ,@(sublis replacements-alist body))))
-            (if let-vars
-                `(let ,(mapcar #'list let-vars let-forms)
-                   ,main)
-                main)))))))
+(defun %make-positional-gaps-filler (callback &key (start 0) min-end)
+  '(values accumulate-next-position finish)
+  (flet ((fill-gap (function marker exclusive-start exclusive-end)
+           (dotimes (i (- exclusive-end exclusive-start 1))
+             (funcall function marker (+ exclusive-start i 1)))))
+    (let ((previous start))
+      (values (lambda (current &key (object nil objectp))
+                (unless (> current previous)
+                  (error "Positions must be strictly increasing. (<= ~A ~A)."
+                         current previous))
+                (fill-gap callback :gap previous current)
+                (setf previous current)
+                (multiple-value-call callback
+                  :there current (if objectp object (values)))
+                (values))
+              (lambda ()
+                (when min-end
+                  (fill-gap callback :pad previous (1+ min-end)))
+                (values))))))
+
+(defun %make-bindings-accumulator ()
+  '(values add-binding finish-bindings)
+  (let ((bindings nil))
+    (values (lambda (new-binding)
+              (destructuring-bind (var form) new-binding
+                (declare (ignore form))
+                (check-type var (and symbol (not null)))
+                (prog1 var
+                  (push new-binding bindings))))
+            (lambda ()
+              (nreverse bindings)))))
+
+(defun %make-positional-vars-accumulator (var-function)
+  '(values ensure-positional-var finish)
+  (let ((blist nil))
+    (values (lambda (position)
+              (check-type position integer)
+              (let ((existing (assoc position blist :test #'=)))
+                (if existing
+                    (second existing)
+                    (let ((new-var (funcall var-function position)))
+                      (prog1 new-var
+                        (push (list position new-var)
+                              blist))))))
+            (lambda ()
+              (sort blist #'< :key #'car)))))
+
+(defun %make-lambda-list-accumulator ()
+  '(values add-var finish)
+  (let ((lambda-list nil)
+        (ignored-vars nil)
+        (rest-usage nil)
+        (rest-var nil))
+    (values (lambda (var &key (usage :used) (lambda-kind :required))
+              (check-type var (and symbol (not null)))
+              (check-type usage (member :used :ignored))
+              (check-type lambda-kind (member :required &rest))
+              (prog1 var
+                (ecase lambda-kind
+                  (:required
+                   (push var lambda-list)
+                   (when (eq usage :ignored)
+                     (push var ignored-vars)))
+                  (&rest (if rest-usage
+                             (error "Multiple &rest vars prohibited.")
+                             (setf (values rest-usage rest-var)
+                                   (values usage var)))))))
+            (lambda ()
+              '(values lambda-list ignored-vars)
+              (when rest-usage
+                (push '&rest lambda-list)
+                (push rest-var lambda-list))
+              (when (eq rest-usage :ignored)
+                (push rest-var ignored-vars))
+              (values (nreverse lambda-list)
+                      (nreverse ignored-vars))))))
+
+(defun %compute-lambda-list (used-required-vars min-length rest-usage rest-var)
+  '(values lambda-list ignored-vars)
+  (multiple-value-bind (add-var finish-lambda-list)
+      (%make-lambda-list-accumulator)
+    (multiple-value-bind (acc finish-gaps-filling)
+        (%make-positional-gaps-filler
+         (lambda (marker position &optional var)
+           (multiple-value-call add-var
+             (ecase marker
+               (:there var)
+               ((:gap :pad)
+                (values (gensym (format nil "~A~D-" '#:ignored position))
+                        :usage :ignored)))))
+         :min-end min-length)
+      (dolist (position-var used-required-vars)
+        (destructuring-bind (position var) position-var
+          (funcall acc position :object var)))
+      (funcall finish-gaps-filling))
+    (when rest-usage
+      (funcall add-var rest-var :usage rest-usage :lambda-kind '&rest))
+    (funcall finish-lambda-list)))
+
+(defun %make-walking-state-closures (&key min-length-indicator accept-rest-p
+                                     &allow-other-keys)
+  '(values process-thing finish &key add-let-binding)
+  (let ((rest-var nil))
+    (multiple-value-bind (add-let-binding
+                          finish-let-bindings
+                          ensure-positional-var
+                          finish-positional-vars)
+        (multiple-value-call #'values
+          (%make-bindings-accumulator)
+          (%make-positional-vars-accumulator
+           (lambda (position)
+             (gensym (format nil "~A~D-" '#:used position)))))
+      (values (lambda (thing)
+                (let ((position nil))
+                  (cond
+                    ((eq thing :rest)
+                     (or rest-var
+                         (setf rest-var (gensym (string '#:used-rest-)))))
+                    ((setf position (%positional-ref-p thing))
+                     (funcall ensure-positional-var position))
+                    (t nil))))
+              (lambda ()
+                '(values &key let-bindings lambda-list ignored-vars)
+                (multiple-value-bind (lambda-list ignored-vars)
+                    (multiple-value-call #'%compute-lambda-list
+                      (funcall finish-positional-vars)
+                      (%positional-ref-p min-length-indicator)
+                      (cond (rest-var (values :used rest-var))
+                            (accept-rest-p
+                             (values :ignored (gensym (string '#:ignored-rest-))))
+                            (t (values nil nil))))
+                  (values :let-bindings (funcall finish-let-bindings)
+                          :lambda-list lambda-list
+                          :ignored-vars ignored-vars)))
+              :add-let-binding add-let-binding))))
+
+(defun %walk (body process-possible-terminal)
+  (labels ((recurse (expression)
+             expression
+             (multiple-value-bind (result definitely-terminal-p)
+                 (funcall process-possible-terminal expression)
+               (cond
+                 ((or result definitely-terminal-p)
+                  result)
+                 ((atom expression)
+                  expression)
+                 (t (labels ((process (tail)
+                               (cons (recurse (first tail))
+                                     (let ((tail (rest tail)))
+                                       (if (atom tail)
+                                           (recurse tail)
+                                           (process tail))))))
+                      (process expression)))))))
+    (mapcar #'recurse body)))
+
+(defun %standard-local-special-forms (&key add-let-binding &allow-other-keys)
+  (list
+   (cons 'plambda #'identity)
+   (cons 'quote #'identity)
+   (cons :quote
+         (lambda (whole)
+           (destructuring-bind (opaque) (rest whole)
+             opaque)))
+   #+nil
+   (error "Found ~S nested within ~S local special form."
+          expression (first old-context))
+   (cons :let
+         (let ((precomputed-gensym (%gensym-generator '#:precomputed)))
+           (lambda (whole)
+             (destructuring-bind (form) (rest whole)
+               (let ((var (funcall precomputed-gensym)))
+                 (prog1 var
+                   (funcall add-let-binding var form)))))))
+   (cons :cache
+         (let ((cache-gensym (%gensym-generator '#:cache))
+               (cachedp-gensym (%gensym-generator '#:cachedp)))
+           (lambda (whole)
+             (destructuring-bind (form) (rest whole)
+               (let ((cache-var (funcall cache-gensym))
+                     (cachedp-var (funcall cachedp-gensym)))
+                 (prog1 `(if ,cachedp-var
+                             ,cache-var
+                             (prog1 (setf ,cache-var ,form)
+                               (setf ,cachedp-var t)))
+                   (funcall add-let-binding cache-var 'nil)
+                   (funcall add-let-binding cachedp-var 'nil)))))))))
+
+(defun %processing-local-special-forms (local-special-forms-alist else)
+  (lambda (expression)
+    (funcall (or (and (consp expression)
+                      (cdr (assoc (first expression)
+                                  local-special-forms-alist)))
+                 else)
+             expression)))
+
+(defun %assemble (body &key let-bindings lambda-list ignored-vars
+                  &allow-other-keys)
+  '(values form)
+  (let ((main
+         `(lambda ,lambda-list
+            ,@(and ignored-vars (list `(declare (ignore ,@ignored-vars))))
+            ,@body)))
+    (if let-bindings
+        `(let ,let-bindings
+           ,main)
+        main)))
+
+(defmacro multiple-value-&bind (lambda-list values-form &body body)
+  (if (member #\& lambda-list :key (lambda (symbol)
+                                     (char (symbol-name symbol) 0)))
+      `(multiple-value-call (lambda ,lambda-list ,@body) ,values-form)
+      `(multiple-value-bind ,lambda-list ,values-form ,@body)))
+
+(defun %standard-expansion-process (parse-body
+                                    make-walking-state
+                                    make-local-special-forms
+                                    assemble)
+  (lambda (body)
+    (multiple-value-call assemble
+      (multiple-value-&bind (body &rest indicators) (funcall parse-body body)
+        (multiple-value-&bind (process-thing finish &rest walk-control-closures)
+            (apply make-walking-state indicators)
+          (multiple-value-call #'values
+            (%walk body
+                   (%processing-local-special-forms
+                    (apply make-local-special-forms walk-control-closures)
+                    process-thing))
+            (funcall finish)))))))
+
+(let ((expand (%standard-expansion-process '%parse-body
+                                           '%make-walking-state-closures
+                                           '%standard-local-special-forms
+                                           '%assemble)))
+  (defmacro plambda (&body body)
+    (funcall expand body)))
