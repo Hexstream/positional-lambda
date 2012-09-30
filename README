@@ -105,13 +105,6 @@ operators are nested within themselves or eachother:
 
 (plambda (:let (:let 1))) ; undefined
 
-Beware that PLAMBDA's parsing model, described below, can result in
-"false matches" for :let and :once:
-
-(plambda (member :1 '(:let :let*))) ; won't do the right thing.
-
-(plambda (member :1 '(:let* :let))) ; will do the right thing.
-
 
 PLAMBDA will treat any quoted expressions as opaque, and will treat
 anything wrapped in the :quote local-special-form as opaque as well.
@@ -123,6 +116,15 @@ anything wrapped in the :quote local-special-form as opaque as well.
 (plambda () (:quote :1))
 ==
 (lambda () :1)
+
+
+Unfortunately, currently PLAMBDA won't do the right thing with some
+expressions that are quoted via backquote (since there's no easy
+portable way to walk backquoted expressions).
+
+(plambda `(:1 ,:2))
+==
+[:1 will be erroneously replaced]
 
 
 To use lambda-lift, simply (:import-from #:lambda-lift #:lift) from
