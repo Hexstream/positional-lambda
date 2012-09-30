@@ -1,30 +1,31 @@
 Project's home: http://www.hexstreamsoft.com/projects/positional-lambda/
 
 
+(This documentation is pretty bare, I'll update it when I'm done
+making a great documentation system. I didn't yet take care of the
+"paucity of examples" and "absence of formal description" problems.)
+
+
 positional-lambda is a concise, intuitive and flexible syntax (macro)
 for trivial lambdas that eschews explicit (and often
 contextually-redundant) naming of parameter variables in favor of
 positional references, with support for a used or ignored &rest
 parameter and automatic declaration of ignored parameters when logical
-"gaps" are left in the positional references.
+"gaps" are left in the positional references. Further convenience
+features are provided.
 
-LIFT is particularly useful when used in conjunction with mapping
-operators such as MAPCAR, though for brevity the mapping parts will
-not be shown in these examples, only the LIFT expressions and
-equivalent LAMBDA's.
-
-(lift (values :3 :1))
+(plambda (values :3 :1))
 ==
 (lambda (first second third)
   (declare (ignore second))
   (values third first))
 
-(lift &rest rest (list* :2 :1 rest))
+(plambda (list* :2 :1 :rest))
 ==
 (lambda (first second &rest rest)
   (list* second first rest))
 
-(lift &rest nil (list :2 :1))
+(plambda :rest (list :2 :1))
 ==
 (lambda (first second &rest rest)
   (declare (ignore rest))
@@ -33,51 +34,51 @@ equivalent LAMBDA's.
 
 It's possible to specify a minimum number of required arguments:
 
-(lift :3 :2)
+(plambda :3 :2)
 ==
 (lambda (first second third)
   (declare (ignore first third))
   second)
 
-(lift :2 :3) ; redundant minimum: 3 > 2.
+(plambda :2 :3) ; redundant minimum: 3 > 2.
 ==
-(lift :3)
+(plambda :3)
 
 
 Which also has the effect of "pushing back" the &rest argument if there's one:
 
-(lift :3 &rest rest (mapcar :1 rest))
+(plambda :3 (mapcar :1 :rest))
 ==
 (lambda (first second third &rest rest)
   (declare (ignore second third))
   (mapcar first rest))
 
 
-The first argument to LIFT is treated as a specification of the
+The first argument to PLAMBDA is treated as a specification of the
 minimum number of arguments only if it looks like a positional reference
-and LIFT was invoked with other arguments:
+and PLAMBDA was invoked with other arguments:
 
-(lift :2)
+(plambda :2)
 ==
 (lambda (first second)
   (declare (ignore first))
   second)
 
 
-LIFT accepts an implicit PROGN, not just one expression:
+PLAMBDA accepts an implicit PROGN, not just one expression:
 
-(lift (print :1) :2)
+(plambda (print :1) :2)
 ==
 (lambda (first second)
   (print first)
   second)
 
 
-Also, LIFT's :let "local special operator" allows one to "lift" parts of
+Also, PLAMBDA's :let "local special operator" allows one to "lift" parts of
 its body outside the lambda to a LET without needing to name and then
 refer to an explicit variable.
 
-(lift :2 (list :1 (:let (random))))
+(plambda :2 (list :1 (:let (random))))
 ==
 (let ((number (random)))
   (lambda (first second)
@@ -85,12 +86,12 @@ refer to an explicit variable.
     (list first number)))
 
 
-Another feature is :once, which is like :let except it computes the
+Another feature is :cache, which is like :let except it computes the
 associated form in its original lexical and dynamic context within the
 lambda the first time its evaluation completes and returns the cached
 value on subsequent evaluations.
 
-(lift (write :1 :base (:once *print-base*)))
+(plambda (write :1 :base (:cache *print-base*)))
 ==
 (let (base basep)
   (lambda (first)
@@ -99,22 +100,29 @@ value on subsequent evaluations.
                            (prog1 (setf base *print-base*)
                              (setf basep t))))))
 
-It is an error to nest the :let and :once local special operators
-within themselves or eachother:
+The consequences are undefined if the :let and :once local special
+operators are nested within themselves or eachother:
 
-(lift (:let (:let 1))) ; error
+(plambda (:let (:let 1))) ; undefined
 
-Beware that LIFT's parsing model, described below, can result in
+Beware that PLAMBDA's parsing model, described below, can result in
 "false matches" for :let and :once:
 
-(lift (member :1 '(:let :let*))) ; won't do the right thing.
+(plambda (member :1 '(:let :let*))) ; won't do the right thing.
 
-(lift (member :1 '(:let* :let))) ; will do the right thing.
+(plambda (member :1 '(:let* :let))) ; will do the right thing.
 
-It would be possible to disable matching of :let and :some in quoted
-expressions, but this could theoretically adversely affect the
-semantics of some macros and leave other kinds of false matches
-anyway, so simplicity was chosen.
+
+PLAMBDA will treat any quoted expressions as opaque, and will treat
+anything wrapped in the :quote local-special-form as opaque as well.
+
+(plambda ':1)
+==
+(lambda () ':1)
+
+(plambda () (:quote :1))
+==
+(lambda () :1)
 
 
 To use lambda-lift, simply (:import-from #:lambda-lift #:lift) from
@@ -122,21 +130,22 @@ your DEFPACKAGE. Don't (:use #:lambda-lift)! "Clashy" symbols might be
 added to the lambda-lift package in the future.
 
 
-lambda-lift should only be used to describe actually trivial lambdas,
-usually no more than 3 lines long, and should not be used in code
-returned by macros, because of "capture" issues. In particular, due to
-the LIFT macro's parsing model, it's not safe to nest multiple
+positional-lambda should only be used to describe actually trivial
+lambdas, usually no more than 3 lines long, and should not be used in
+code returned by macros, because of "capture" issues. In particular,
+due to the PLAMBDA macro's parsing model, it's not safe to nest multiple
 invocations.
 
-However, these are not practical limitations since as LIFT expressions
-get bigger, the benefits of conciseness quickly fade out to be
-replaced by the problems of implicitness, so hopefully one wouldn't be
-tempted to use it in these scenarios anyway. The implicitness is not a
-problem for suitably short LIFT expressions since the surrounding
-context provides enough contextual information, and explicitly naming
-variables would then simply provide redundant information.
+However, these are not practical limitations since as PLAMBDA's
+expressions get bigger, the benefits of conciseness quickly fade out
+to be replaced by the problems of implicitness, so hopefully one
+wouldn't be tempted to use it in these scenarios anyway. The
+implicitness is not a problem for suitably short PLAMBDA expressions
+since the surrounding context provides enough contextual information,
+and explicitly naming variables would then simply provide redundant
+information.
 
-LIFT's deliberately simplistic "surface parsing" (and replacement)
+PLAMBDA's deliberately simplistic "surface parsing" (and replacement)
 strategy is conceptually and implementationally simple and robust, as
 opposed to often-brittle "code-walking" where an attempt is made to
 take into account the actual semantics of forms and operators, often
