@@ -12,4 +12,6 @@
   :version "2.0"
   :serial cl:t
   :components ((:file "package")
-	       (:file "main")))
+	       (:file "main"))
+
+  :in-order-to ((asdf:test-op (asdf:test-op #:positional-lambda_tests))))
