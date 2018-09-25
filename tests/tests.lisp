@@ -5,9 +5,8 @@
 (cl:in-package #:positional-lambda_tests)
 
 (defmacro test-plambda (plambda input-args expected-argument-values)
-  `(is equal
-       (multiple-value-list (funcall ,plambda ,@input-args))
-       ',expected-argument-values))
+  `(is equal ',expected-argument-values
+       (multiple-value-list (funcall ,plambda ,@input-args))))
 
 (define-test "featured-examples"
   (test-plambda (plambda (values :3 :1))
@@ -43,13 +42,12 @@
                 (1 2)
                 ((1 :random)))
 
-  (is string=
+  (is string= "1111"
       (let ((fun (plambda (write :1 :base (:cache *print-base*)))))
         (with-output-to-string (*standard-output*)
           (let ((*print-base* 2))
             (funcall fun 3))
-          (funcall fun 3)))
-      "1111")
+          (funcall fun 3))))
 
   ; TODO: (fail (plambda (:let (:let 1)))) ; undefined
 
