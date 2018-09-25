@@ -4,9 +4,12 @@
 
 (cl:in-package #:positional-lambda_tests)
 
+(defmacro are (comp expected form &optional description &rest format-args)
+  `(is ,comp ,expected (multiple-value-list ,form) ,description ,@format-args))
+
 (defmacro test-plambda (plambda input-args expected-argument-values)
-  `(is equal ',expected-argument-values
-       (multiple-value-list (funcall ,plambda ,@input-args))))
+  `(are equal ',expected-argument-values
+        (funcall ,plambda ,@input-args)))
 
 (define-test "featured-examples"
   (test-plambda (plambda (values :3 :1))
