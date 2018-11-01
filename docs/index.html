@@ -85,7 +85,7 @@
 
       <section id="introduction">
 
-        <p><dfn><code class="common-lisp library macro operator">plambda</code></dfn> is a concise, intuitive and flexible syntax (macro) for trivial <code>lambda</code>s that eschews explicit (and often contextually-redundant) naming of parameter variables in favor of positional references, with support for a used or ignored <code>&amp;rest</code> parameter and automatic declaration of <code>ignore</code>d parameters when logical "gaps" are left in the positional references. Further convenience features are provided.</p>
+        <p><dfn><code class="relevant">plambda</code></dfn> is a concise, intuitive and flexible syntax (macro) for trivial <code>lambda</code>s that eschews explicit (and often contextually-redundant) naming of parameter variables in favor of positional references, with support for a used or ignored <code>&amp;rest</code> parameter and automatic declaration of <code>ignore</code>d parameters when logical "gaps" are left in the positional references. Further convenience features are provided.</p>
 
       </section>
 
@@ -105,18 +105,18 @@
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> (values <code class="common-lisp library local marker">:3</code> <code class="common-lisp library local marker">:1</code>))
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> (values <code class="relevant marker">:3</code> <code class="relevant marker">:1</code>))
 ==
 (lambda (<var>first</var> <var>second</var> <var>third</var>)
   (declare (ignore <var>second</var>))
   (values <var>third</var> <var>first</var>))</code></pre>
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> (list <code class="common-lisp library local marker">:2</code> <code class="common-lisp library local marker">:1</code> <code class="common-lisp library local marker">:rest</code>))
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> (list <code class="relevant marker">:2</code> <code class="relevant marker">:1</code> <code class="relevant marker">:rest</code>))
 ==
 (lambda (<var>first</var> <var>second</var> &amp;rest <var>rest</var>)
   (list <var>second</var> <var>first</var> <var>rest</var>))</code></pre>
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> <code class="common-lisp library local marker">:rest</code> (list <code class="common-lisp library local marker">:2</code> <code class="common-lisp library local marker">:1</code>))
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> <code class="relevant marker">:rest</code> (list <code class="relevant marker">:2</code> <code class="relevant marker">:1</code>))
 ==
 (lambda (<var>first</var> <var>second</var> &amp;rest <var>rest</var>)
   (declare (ignore <var>rest</var>))
@@ -128,15 +128,15 @@
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> <code class="common-lisp library local marker">:3</code> <code class="common-lisp library local marker">:2</code>)
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> <code class="relevant marker">:3</code> <code class="relevant marker">:2</code>)
 ==
 (lambda (<var>first</var> <var>second</var> <var>third</var>)
   (declare (ignore <var>first</var> <var>third</var>))
   <var>second</var>)</code></pre>
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> <code class="common-lisp library local marker">:2</code> <code class="common-lisp library local marker">:3</code>) <span class="comment">; redundant minimum: 3 > 2.</span>
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> <code class="relevant marker">:2</code> <code class="relevant marker">:3</code>) <span class="comment">; redundant minimum: 3 > 2.</span>
 ==
-(<code class="common-lisp library operator">plambda</code> <code class="common-lisp library local marker">:3</code>)</code></pre>
+(<code class="relevant">plambda</code> <code class="relevant marker">:3</code>)</code></pre>
 
         </div>
 
@@ -144,7 +144,7 @@
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> <code class="common-lisp library local marker">:3</code> (mapcar <code class="common-lisp library local marker">:1</code> <code class="common-lisp library local marker">:rest</code>))
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> <code class="relevant marker">:3</code> (mapcar <code class="relevant marker">:1</code> <code class="relevant marker">:rest</code>))
 ==
 (lambda (<var>first</var> <var>second</var> <var>third</var> &amp;rest <var>rest</var>)
   (declare (ignore <var>second</var> <var>third</var>))
@@ -152,11 +152,11 @@
 
         </div>
 
-        <p>The first argument to <code class="common-lisp library operator">plambda</code> is treated as a specification of the minimum number of arguments only if it looks like a positional reference and <code class="common-lisp library operator">plambda</code> was invoked with other arguments:</p>
+        <p>The first argument to <code class="relevant">plambda</code> is treated as a specification of the minimum number of arguments only if it looks like a positional reference and <code class="relevant">plambda</code> was invoked with other arguments:</p>
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> <code class="common-lisp library local marker">:2</code>)
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> <code class="relevant marker">:2</code>)
 ==
 (lambda (<var>first</var> <var>second</var>)
   (declare (ignore <var>first</var>))
@@ -164,11 +164,11 @@
 
         </div>
 
-        <p><code class="common-lisp library operator">plambda</code> accepts an implicit <code>progn</code>, not just one expression:</p>
+        <p><code class="relevant">plambda</code> accepts an implicit <code>progn</code>, not just one expression:</p>
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> (print <code class="common-lisp library local marker">:1</code>) <code class="common-lisp library local marker">:2</code>)
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> (print <code class="relevant marker">:1</code>) <code class="relevant marker">:2</code>)
 ==
 (lambda (<var>first</var> <var>second</var>)
   (print <var>first</var>)
@@ -176,11 +176,11 @@
 
         </div>
 
-        <p>Also, <code class="common-lisp library operator">plambda</code>'s <code class="common-lisp library local special-operator operator">:let</code> "local special operator" allows one to "lift" parts of its body outside the <code>lambda</code> to a <code>let</code> without needing to name and then refer to an explicit variable.</p>
+        <p>Also, <code class="relevant">plambda</code>'s <code class="relevant marker">:let</code> "local special operator" allows one to "lift" parts of its body outside the <code>lambda</code> to a <code>let</code> without needing to name and then refer to an explicit variable.</p>
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> <code class="common-lisp library local marker">:2</code> (list <code class="common-lisp library local marker">:1</code> (<code class="common-lisp library local special-operator operator">:let</code> (random))))
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> <code class="relevant marker">:2</code> (list <code class="relevant marker">:1</code> (<code class="relevant marker">:let</code> (random))))
 ==
 (let ((<var>number</var> (random)))
   (lambda (<var>first</var> <var>second</var>)
@@ -189,11 +189,11 @@
 
         </div>
 
-        <p>Another feature is <code class="common-lisp library local special-operator operator">:cache</code>, which is like <code class="common-lisp library local special-operator operator">:let</code> except it computes the associated form in its original lexical and dynamic context within the <code>lambda</code> the first time its evaluation completes and returns the cached value on subsequent evaluations.</p>
+        <p>Another feature is <code class="relevant marker">:cache</code>, which is like <code class="relevant marker">:let</code> except it computes the associated form in its original lexical and dynamic context within the <code>lambda</code> the first time its evaluation completes and returns the cached value on subsequent evaluations.</p>
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> (write <code class="common-lisp library local marker">:1</code> :base (<code class="common-lisp library local special-operator operator">:cache</code> *print-base*)))
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> (write <code class="relevant marker">:1</code> :base (<code class="relevant marker">:cache</code> *print-base*)))
 ==
 (let (<var>base</var> <var>basep</var>)
   (lambda (<var>first</var>)
@@ -204,46 +204,46 @@
 
         </div>
 
-        <p>The consequences are undefined if the <code class="common-lisp library local special-operator operator">:let</code> and <code class="common-lisp library local special-operator operator">:cache</code> local special operators are nested within themselves or eachother:</p>
+        <p>The consequences are undefined if the <code class="relevant marker">:let</code> and <code class="relevant marker">:cache</code> local special operators are nested within themselves or eachother:</p>
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> (<code class="common-lisp library local special-operator operator">:let</code> (<code class="common-lisp library local special-operator operator">:let</code> 1))) <span class="comment">; undefined</span></code></pre>
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> (<code class="relevant marker">:let</code> (<code class="relevant marker">:let</code> 1))) <span class="comment">; undefined</span></code></pre>
 
         </div>
 
-        <p><code class="common-lisp library operator">plambda</code> will treat any quoted expressions as opaque, and will treat anything wrapped in the <code class="common-lisp library local special-operator operator">:quote</code> local-special-operator as opaque as well.</p>
+        <p><code class="relevant">plambda</code> will treat any quoted expressions as opaque, and will treat anything wrapped in the <code class="relevant marker">:quote</code> local-special-operator as opaque as well.</p>
 
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> ':1)
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> ':1)
 ==
 (lambda () ':1)</code></pre>
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> () (<code class="common-lisp library local special-operator operator">:quote</code> :1))
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> () (<code class="relevant marker">:quote</code> :1))
 ==
 (lambda () :1)</code></pre>
 
         </div>
 
-        <p>Unfortunately, currently <code class="common-lisp library operator">plambda</code> won't do the right thing with some expressions that are quoted via backquote (since there's no easy portable way to walk backquoted expressions).</p>
+        <p>Unfortunately, currently <code class="relevant">plambda</code> won't do the right thing with some expressions that are quoted via backquote (since there's no easy portable way to walk backquoted expressions).</p>
 
         <div class="scroll">
 
-          <pre class="example"><code class="common-lisp">(<code class="common-lisp library operator">plambda</code> `(<code class="common-lisp library local marker">:1</code> ,<code class="common-lisp library local marker">:2</code>))
+          <pre class="example"><code class="common-lisp">(<code class="relevant">plambda</code> `(<code class="relevant marker">:1</code> ,<code class="relevant marker">:2</code>))
 ==
-&lbrack;<code class="common-lisp library local marker">:1</code> will be erroneously replaced&rbrack;</code></pre>
+&lbrack;<code class="relevant marker">:1</code> will be erroneously replaced&rbrack;</code></pre>
 
         </div>
 
         <p>To use <code class="common-lisp library macro operator">plambda</code>, simply <code class="common-lisp">(:import-from #:positional-lambda #:plambda)</code> from your <code class="common-lisp standard macro operator">defpackage</code>. Don't <code class="common-lisp">(:use)</code>! "Clashy" symbols might be added to the <code class="common-lisp library package">positional-lambda</code> package in the future.</p>
 
-        <p>positional-lambda should only be used to describe actually trivial <code class="common-lisp standard macro operator">lambda</code>s, <strong>usually no more than 3 lines long</strong>, and should not be used in code returned by macros, because of "capture" issues. <del>In particular, due to the <code class="common-lisp library operator">plambda</code> macro's parsing model, it's not safe to nest multiple invocations.</del> <ins>(Actually, nesting multiple <code class="common-lisp library operator">plambda</code> invocations has been safe for quite a while. The outer invocations will effectively treat any inner ones as being implicitly wrapped in <code class="common-lisp library local special-operator operator">:quote</code>.)</ins></p>
+        <p>positional-lambda should only be used to describe actually trivial <code class="common-lisp standard macro operator">lambda</code>s, <strong>usually no more than 3 lines long</strong>, and should not be used in code returned by macros, because of "capture" issues. <del>In particular, due to the <code class="relevant">plambda</code> macro's parsing model, it's not safe to nest multiple invocations.</del> <ins>(Actually, nesting multiple <code class="relevant">plambda</code> invocations has been safe for quite a while. The outer invocations will effectively treat any inner ones as being implicitly wrapped in <code class="relevant marker">:quote</code>.)</ins></p>
 
-        <p>However, these are not practical limitations since as <code class="common-lisp library operator">plambda</code>'s expressions get bigger, the benefits of conciseness quickly fade out to be replaced by the problems of implicitness, so hopefully one wouldn't be tempted to use it in these scenarios anyway. The implicitness is not a problem for suitably short <code class="common-lisp library operator">plambda</code> expressions since the surrounding context provides enough contextual information, and explicitly naming variables would then simply provide redundant information.</p>
+        <p>However, these are not practical limitations since as <code class="relevant">plambda</code>'s expressions get bigger, the benefits of conciseness quickly fade out to be replaced by the problems of implicitness, so hopefully one wouldn't be tempted to use it in these scenarios anyway. The implicitness is not a problem for suitably short <code class="relevant">plambda</code> expressions since the surrounding context provides enough contextual information, and explicitly naming variables would then simply provide redundant information.</p>
 
-        <p><code class="common-lisp library operator">plambda</code>'s deliberately simplistic "surface parsing" (and replacement) strategy is conceptually and implementationally simple and robust, as opposed to often-brittle "code-walking" where an attempt is made to take into account the actual semantics of forms and operators, often necessitating explicit support when new operators are introduced.</p>
+        <p><code class="relevant">plambda</code>'s deliberately simplistic "surface parsing" (and replacement) strategy is conceptually and implementationally simple and robust, as opposed to often-brittle "code-walking" where an attempt is made to take into account the actual semantics of forms and operators, often necessitating explicit support when new operators are introduced.</p>
 
       </section>
 
